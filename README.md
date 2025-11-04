@@ -1,13 +1,15 @@
-# MY_ASSISTANCE - AI YouTube Automation Suite
+---
+title: MY_ASSISTANCE AI
+emoji: 🚀
+colorFrom: blue
+colorTo: purple
+sdk: streamlit
+sdk_version: "1.38.0"
+app_file: app.py
+pinned: false
+license: mit
+---
 
-This system automates YouTube content creation for multiple channels:
-- Topic + Script generation
-- Voiceover (Hindi)
-- Thumbnail generation
-- Video compilation
-- Daily upload scheduling
+# MY_ASSISTANCE AI 🚀
 
-## Run commands:
-```bash
-python app.py             # Manual Dashboard
-python ai_core/scheduler.py  # Automatic Daily Workflow
+Your all-in-one intelligent assistant for YouTube automation, video generation, and AI-powered content creation — running on Hugging Face Spaces.
