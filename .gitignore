@@ -1,6 +1,6 @@
+# Secrets
+config/secrets.yaml
 tokens/
-youtube/tokens/
-config/api_keys.json
-client_secret.json
-logs/
+*.log
 __pycache__/
+.env

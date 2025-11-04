@@ -7,3 +7,11 @@ pyyaml
 requests
 Pillow
 gTTS
+streamlit
+moviepy
+pytube
+gTTS
+openai
+requests
+pandas
+huggingface_hub
