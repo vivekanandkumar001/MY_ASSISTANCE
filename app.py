@@ -1,150 +1,90 @@
-# app.py — Streamlit control UI for MY_ASSISTANCE
 import streamlit as st
-import os, shutil, yaml, requests, json, glob, time
-from pathlib import Path
+from ai_core.config_loader import load_secrets
+import openai
+import requests
 
-# ---------- CONFIG ----------
-REPO_OWNER = os.getenv("REPO_OWNER", "vivekanandkumar001")
-REPO_NAME = os.getenv("REPO_NAME", "MY_ASSISTANCE")
-WORKFLOW_FILE = os.getenv("WORKFLOW_FILE", "ci_schedule.yml")  # GitHub workflow filename
-GITHUB_API = "https://api.github.com"
+# -------------------- #
+# 🔐 Load all secrets
+# -------------------- #
+secrets = load_secrets()
 
-# Secrets expected in Hugging Face Space Settings -> Repository secrets
-# - GITHUB_PAT : Personal access token (repo/workflow dispatch permission)
-# - HF_TOKEN (optional)
-# - YOUTUBE_TOKENS (optional big JSON)
-# Make sure these are set in HF Space settings.
+# Set environment tokens
+openai.api_key = secrets.get("openai_api_key")
+HF_TOKEN = secrets.get("huggingface_token")
+GROQ_API_KEY = secrets.get("groq_api_key")
+YOUTUBE_CLIENT_ID = secrets.get("youtube_client_id")
+YOUTUBE_CLIENT_SECRET = secrets.get("youtube_client_secret")
+GOOGLE_PROJECT_ID = secrets.get("google_project_id")
 
-# ---------- HELPERS ----------
-def read_yaml(path):
-    if not os.path.exists(path): return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+# -------------------- #
+# ⚙️ Streamlit UI Setup
+# -------------------- #
+st.set_page_config(page_title="MY_ASSISTANCE AI", layout="wide")
 
-def list_scripts():
-    os.makedirs("data/scripts", exist_ok=True)
-    return sorted(glob.glob("data/scripts/*.txt"))
+st.title("🤖 MY_ASSISTANCE — Smart AI Automation")
+st.markdown("Your personal AI system that creates, automates, and uploads content!")
 
-def read_file(p):
-    with open(p, "r", encoding="utf-8") as f:
-        return f.read()
+# Sidebar Info
+st.sidebar.title("Settings")
+st.sidebar.info("Configure and control your AI Assistant here.")
 
-def ensure_dirs():
-    for p in ["data/approved","data/scripts","data/thumbnails","data/uploads","logs"]:
-        os.makedirs(p, exist_ok=True)
+# -------------------- #
+# 🎥 AI YouTube Assistant Section
+# -------------------- #
+st.header("🎬 YouTube Content Automation")
 
-def move_to_approved(script_path):
-    ensure_dirs()
-    base = os.path.basename(script_path)
-    dest = os.path.join("data/approved", base)
-    shutil.copy2(script_path, dest)
-    return dest
+topic = st.text_input("Enter your video topic:", placeholder="e.g. 'The hidden science of dreams'")
+generate_btn = st.button("🚀 Generate Script")
 
-def trigger_github_workflow(mode="daily", episode_file=None):
-    pat = st.secrets.get("GITHUB_PAT", None)
-    if not pat:
-        return False, "GITHUB_PAT secret missing in Space settings."
-
-    url = f"{GITHUB_API}/repos/{REPO_OWNER}/{REPO_NAME}/actions/workflows/{WORKFLOW_FILE}/dispatches"
-    headers = {
-        "Authorization": f"token {pat}",
-        "Accept": "application/vnd.github+json"
-    }
-    payload = {
-        "ref": "main",
-        "inputs": {
-            "mode": mode,
-            "episode_file": episode_file or ""
-        }
-    }
-    r = requests.post(url, headers=headers, json=payload, timeout=30)
-    if r.status_code in (204, 201):
-        return True, "Workflow dispatched successfully."
+if generate_btn:
+    if not openai.api_key:
+        st.error("⚠️ OpenAI API key missing! Please add it to your Hugging Face Secrets.")
     else:
-        return False, f"Failed to dispatch: {r.status_code} {r.text}"
+        with st.spinner("🤖 Generating script..."):
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a professional Hindi YouTube scriptwriter."},
+                        {"role": "user", "content": f"Create a detailed 10-minute Hindi YouTube script on: {topic}"}
+                    ],
+                    temperature=0.8
+                )
+                script = response.choices[0].message["content"]
+                st.subheader("📜 Generated Script:")
+                st.write(script)
 
-# ---------- UI ----------
-st.set_page_config(page_title="MY_ASSISTANCE Control Panel", layout="wide")
-st.title("🤖 MY_ASSISTANCE — Control & Preview")
-st.markdown("Use this UI to preview scripts, approve them, and trigger GitHub Actions (which runs the generator & uploader).")
+                # Option to save
+                with open("generated_script.txt", "w", encoding="utf-8") as f:
+                    f.write(script)
+                st.success("✅ Script saved successfully as generated_script.txt")
+            except Exception as e:
+                st.error(f"Error generating script: {e}")
 
-ensure_dirs()
+# -------------------- #
+# 🧠 Groq AI Assistant (optional)
+# -------------------- #
+st.header("🧩 Advanced AI (Groq Integration)")
 
-# Left: settings and trigger
-with st.sidebar:
-    st.header("Quick Actions")
-    if st.button("🔄 Refresh script list"):
-        st.experimental_rerun()
+if st.button("Run Groq Test"):
+    if not GROQ_API_KEY:
+        st.error("⚠️ Groq API key missing! Add it to your secrets.")
+    else:
+        st.info("🔄 Testing Groq model...")
+        try:
+            headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
+            data = {"model": "mixtral-8x7b", "prompt": "Hello Groq!", "temperature": 0.7}
+            response = requests.post("https://api.groq.com/v1/completions", json=data, headers=headers)
+            st.success("✅ Groq Response:")
+            st.json(response.json())
+        except Exception as e:
+            st.error(f"Error: {e}")
 
-    st.markdown("**Trigger GitHub workflow**")
-    mode = st.selectbox("Mode to run", ["daily","weekly","single"], index=0)
-    ep_file_select = None
-    if mode == "single":
-        scripts = [""] + [os.path.basename(p) for p in list_scripts()]
-        ep_file_select = st.selectbox("Select script to run (single)", scripts)
-    if st.button("▶ Trigger workflow now"):
-        ep = ep_file_select if ep_file_select else None
-        ok, msg = trigger_github_workflow(mode=mode, episode_file=ep)
-        if ok:
-            st.success(msg)
-        else:
-            st.error(msg)
+# -------------------- #
+# 📺 YouTube Upload (Future Integration)
+# -------------------- #
+st.header("📤 YouTube Auto Upload (Coming Soon)")
+st.info("This feature will automatically upload your generated video or audio to YouTube using OAuth2 credentials.")
 
-    st.markdown("---")
-    st.markdown("**Settings**")
-    conf = read_yaml("config/settings.yaml")
-    st.code(conf if conf else "settings.yaml not found or empty")
-    st.markdown("**Secrets** (check HF Space → Settings → Repository secrets)")
-    st.write("- GITHUB_PAT: required")
-    st.write("- HF_TOKEN: optional (for HF generation)")
-    st.write("- YOUTUBE tokens: upload tokens for channels")
+st.caption("Made by Vivekanand Kumar 🚀 | Powered by OpenAI, Hugging Face & Groq")
 
-# Right: scripts list + preview + approve
-st.subheader("Generated scripts (data/scripts)")
-scripts = list_scripts()
-if not scripts:
-    st.info("No scripts found in data/scripts. Run generator or push scripts into this folder.")
-else:
-    for s in scripts[::-1]:  # newest first
-        cols = st.columns([1,4,1])
-        with cols[0]:
-            st.write(os.path.basename(s))
-            st.write(f"{time.ctime(os.path.getmtime(s))}")
-            if st.button("Preview", key=f"preview_{s}"):
-                st.session_state["preview"] = s
-            if st.button("Approve (copy)", key=f"approve_{s}"):
-                dest = move_to_approved(s)
-                st.success(f"Copied to approved: {dest}")
-        with cols[1]:
-            st.markdown("---")
-            snippet = read_file(s)
-            st.code(snippet[:4000])  # show up to 4000 chars
-        with cols[2]:
-            # Thumbnail preview if exists
-            thumb_path = os.path.join("data/thumbnails", os.path.basename(s).replace(".txt",".jpg"))
-            if os.path.exists(thumb_path):
-                st.image(thumb_path, width=220)
-            else:
-                st.write("No thumbnail yet")
-
-# Preview pane for single script
-if st.session_state.get("preview"):
-    p = st.session_state["preview"]
-    st.markdown("### Preview: " + os.path.basename(p))
-    st.code(read_file(p))
-    if st.button("🔁 Re-generate thumbnail for preview"):
-        # touch a thumbnail creation (simple placeholder)
-        from ai_core.thumbnail_creator import create_thumbnail
-        title = os.path.basename(p).replace(".txt","")
-        new_thumb = create_thumbnail(title, "Preview")
-        st.image(new_thumb)
-        st.success("Thumbnail created for preview.")
-
-st.markdown("---")
-st.write("Logs:")
-if os.path.exists("logs/activity.log"):
-    with open("logs/activity.log","r",encoding="utf-8") as f:
-        lines = f.readlines()[-200:]  # show last 200 lines
-        st.code("".join(lines[-200:]))
-else:
-    st.write("No logs yet.")
