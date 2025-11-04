@@ -1,0 +1,6 @@
+tokens/
+youtube/tokens/
+config/api_keys.json
+client_secret.json
+logs/
+__pycache__/

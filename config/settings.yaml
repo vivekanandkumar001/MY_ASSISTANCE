@@ -1,0 +1,42 @@
+channels:
+  - name: The_AI_Lab_Presents
+    niche: "AI Experiments and Tech Facts"
+    upload_frequency:
+      shorts_per_day: 2
+      long_per_day: 1
+    language: "Hinglish"
+
+  - name: VDS_Facts
+    niche: "Unknown and Scientific Facts"
+    upload_frequency:
+      shorts_per_day: 2
+      long_per_day: 1
+    language: "Hinglish"
+
+  - name: NeoMind_Network
+    niche: "Psychology, Self-Growth & AI Philosophy"
+    upload_frequency:
+      shorts_per_day: 2
+      long_per_day: 1
+    language: "Hinglish"
+
+  - name: Reality_Vault
+    niche: "Hidden Truths & Mystery Documentaries"
+    upload_frequency:
+      shorts_per_day: 2
+      long_per_day: 1
+    language: "Hinglish"
+
+  - name: Sanatan_Chronicles
+    niche: "3D Animated Hindu Epics, Movies & Mythology"
+    upload_frequency:
+      episode_per_day: 1
+      movie_per_week: 1
+    language: "Hindi"
+
+base:
+  auto_upload: false        # start false; enable true once first N episodes reviewed
+  review_first_n: 10
+  hf_model: "gpt2"          # Hugging Face fallback; change if you have other model
+  enable_hf: true
+  scheduler_interval_seconds: 86400
